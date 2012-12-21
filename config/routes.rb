@@ -1,4 +1,9 @@
 Calendar::Application.routes.draw do
+  resources :events
+
+  get "static_pages/index"
+  root :to => "static_pages#index"
+
   # The priority is based upon order of creation:
   # first created -> highest priority.
 
@@ -56,3 +61,14 @@ Calendar::Application.routes.draw do
   # Note: This route will make all actions in every controller accessible via GET requests.
   # match ':controller(/:action(/:id))(.:format)'
 end
+#== Route Map
+# Generated on 16 Dec 2012 08:28
+#             events GET    /events(.:format)             events#index
+#                    POST   /events(.:format)             events#create
+#          new_event GET    /events/new(.:format)         events#new
+#         edit_event GET    /events/:id/edit(.:format)    events#edit
+#              event GET    /events/:id(.:format)         events#show
+#                    PUT    /events/:id(.:format)         events#update
+#                    DELETE /events/:id(.:format)         events#destroy
+# static_pages_index GET    /static_pages/index(.:format) static_pages#index
+#               root        /                             static_pages#index
