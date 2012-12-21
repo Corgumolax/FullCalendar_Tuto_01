@@ -1,4 +1,8 @@
 $(document).ready(function () {
+    var selected_div = null; // Variables pour mémoriser la séléction en cours
+    var selected_event = null;
+
+    // Fonction d'envoi d'une requête de mise à jour d'un évènement
     var update_function = function (event, dayDelta, minuteDelta, allDay, revertFunc, jsEvent, ui, view) {
         $.ajax({
             url:'/events/' + event._id, // prb d'url à modifier
@@ -13,7 +17,24 @@ $(document).ready(function () {
                 }
             }
         });
-    }  ;
+    };//fin update_function
+
+    // Fonction de gestion des clicks => sélection
+    var click_in_event = function(event, jsEvent, view) {
+        if (selected_div) {   // si il existe un évènement précédement séléctionné
+            selected_div.css('border', 'none'); // on supprime sa bordure css de
+        }
+        selected_div = $(this); // On mémorise la div sur laquelle on a cliqué
+        selected_event = event; // on mémorise l'évènement
+        $(this).css('border', 'solid 2px red'); // On entoure la sélection avec une bordure css
+    }; //fin click_in_event
+
+    // R.A.Z de la sélection
+    function clear_selection(){
+        selected_div = null;
+        selected_event = null;
+    }
+
 
     var calendar = $('#calendar').fullCalendar({
         // paramètres de base
@@ -69,15 +90,36 @@ $(document).ready(function () {
                         allDay:allDay,
                         editable:true
                     }}
-                );
-
+                ).done(function(){
+                        calendar.fullCalendar('unselect');
+                        calendar.fullCalendar('refetchEvents');});
             }
-            calendar.fullCalendar('unselect');
-            calendar.fullCalendar( 'refetchEvents' ) ;
         },
         //Déplacement d'un evenement par glisser/déposer
         eventDrop:update_function,
         //Redimensionnement d'un evenement
-        eventResize:update_function
-    });
+        eventResize:update_function,
+        //Click dans un évènement existant
+        eventClick:click_in_event
+    }); // Fin FullCalendar
+
+    // Ecouteur pour l'appui des touches clavier
+    $(document.documentElement).keyup(function (event) { // qd une touche est relachée
+        if (selected_event) { // si il y a une sélection active
+            if (event.keyCode == 46) { //si a touche est "suppr"
+                if (confirm("Etes vous certain de vouloir supprimer cet évènement?")) { // Demande de confirmation
+                    $.ajax({ //Envoi de la requête de suppression
+                        url:'/events/' + selected_event._id, // prb d'url à modifier
+                        dataType:'json',
+                        type:"DELETE"
+                    }).done(function(){
+                            calendar.fullCalendar('refetchEvents');
+                            clear_selection();
+                    }); //Réaffichage du calendrier qd fini.
+                }
+            }
+        }
+    }); //fin keyup
+
+
 });
