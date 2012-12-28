@@ -35,7 +35,59 @@ $(document).ready(function () {
         selected_event = null;
     }
 
+    // Gestion du dialogue modal d'édition d'un évènement
+    var edit_pop_up = function(data){
+        $('#event-dlg').html(data).dialog({
+            height:400,              // Taille du dialogue
+            width: 410,
+            resizable: false,        // Pas de redimensionnement
+            title: 'Informations',   // Un titre
+            modal:true,              // Dialogue modal => interrompt les autres interractions
+            buttons: {               // Le bouton de validation
+                "Enregistrer": function(){
+                    $('#event_form').submit(); // Envoi les données du formulaire
+                    $(this).dialog('close');   // Ferme le dialogue
+                    $('#calendar').fullCalendar('unselect');  // efface le helper de sélection du créneau horaire
+                    $('#calendar').fullCalendar('refetchEvents');  // Réaffiche le calendrier
+                }
+            },
+            open: function() {  // a l'ouverture du dialogue
+                //on retire l'écouteur des touches moméntanément sinon prb conflit suppr lors édition des champs texte
+                $(document.documentElement).unbind('keyup',key_up_handler);
+                $("#event-dlg").keypress(function(e) {       // gestion de la touche entrée
+                    if (e.which == $.ui.keyCode.ENTER) {
+                        e.preventDefault();
+                        $(this).parent().find("button:eq(0)").trigger("click"); // simule le click sur le bouton enregistrer
+                    }
+                });
+            },
+            close: function( event, ui ) { // appelée à la fermeture du dialogue
+                $("#event-dlg").unbind("keypress"); //on supprime la gestion de la touche entrée
+                $(document.documentElement).bind('keyup',key_up_handler); // Rétablissement de l'écouteur des touches.
 
+            }
+        });
+    };
+
+    // Ecouteur pour l'appui des touches clavier
+    var key_up_handler = function(event){
+        if (selected_event) { // si il y a une sélection active
+            if (event.which == 46 ) { //si a touche est "suppr"
+                if (confirm("Etes vous certain de vouloir supprimer cet évènement?")) { // Demande de confirmation
+                    $.ajax({ //Envoi de la requête de suppression
+                        url:'/events/' + selected_event._id, // prb d'url à modifier
+                        dataType:'json',
+                        type:"DELETE"
+                    }).done(function(){
+                            calendar.fullCalendar('refetchEvents');
+                            clear_selection();
+                        }); //Réaffichage du calendrier qd fini.
+                }
+            }
+        }
+    };
+
+    // Le calendrier à proprement parler
     var calendar = $('#calendar').fullCalendar({
         // paramètres de base
         // Let speak French - traduction des strings en français
@@ -79,47 +131,43 @@ $(document).ready(function () {
         //callbacks et compagnies
         selectHelper:true,
         select:function (start, end, allDay) { //création d'un évenement
-            var title = prompt('Titre:');
-            if (title) {
-                //envoi de la requete de création vers le serveur
-                $.post('events.json', // your url
-                    { event:{
-                        title:title,
-                        start:start,
-                        end:end,
-                        allDay:allDay,
-                        editable:true
-                    }}
-                ).done(function(){
-                        calendar.fullCalendar('unselect');
-                        calendar.fullCalendar('refetchEvents');});
-            }
+                $.ajax({
+                    url:'events/new.js', // prb d'url à modifier
+                    dataType:'html',
+                    type:"GET",
+                    data: { start: start, end: end },
+                    success: edit_pop_up,
+                    error: function(xhRequest, ErrorText, thrownError) {
+                        alert("Error... " + ErrorText + "        " + thrownError);
+                    }
+                });
         },
         //Déplacement d'un evenement par glisser/déposer
         eventDrop:update_function,
         //Redimensionnement d'un evenement
         eventResize:update_function,
         //Click dans un évènement existant
-        eventClick:click_in_event
+        eventClick:click_in_event,
+        // Gestion double click
+        // Voir https://code.google.com/p/fullcalendar/issues/detail?id=231 et http://arshaw.com/fullcalendar/docs/event_rendering/eventRender/
+        eventRender: function(event, element) {
+            element.bind('dblclick', function() {
+
+                $.ajax({
+                    url:'events/' + event._id + '/edit.js', // prb d'url à modifier
+                    dataType:'html',  // récupère le code html du formulaire
+                    type:"GET",
+                    success: edit_pop_up, // ouverture du dialogue modal
+                    error: function(xhRequest, ErrorText, thrownError) {
+                        alert("Error... " + ErrorText + "        " + thrownError);
+                    }
+                });
+            });
+        }
     }); // Fin FullCalendar
 
-    // Ecouteur pour l'appui des touches clavier
-    $(document.documentElement).keyup(function (event) { // qd une touche est relachée
-        if (selected_event) { // si il y a une sélection active
-            if (event.keyCode == 46) { //si a touche est "suppr"
-                if (confirm("Etes vous certain de vouloir supprimer cet évènement?")) { // Demande de confirmation
-                    $.ajax({ //Envoi de la requête de suppression
-                        url:'/events/' + selected_event._id, // prb d'url à modifier
-                        dataType:'json',
-                        type:"DELETE"
-                    }).done(function(){
-                            calendar.fullCalendar('refetchEvents');
-                            clear_selection();
-                    }); //Réaffichage du calendrier qd fini.
-                }
-            }
-        }
-    }); //fin keyup
+    // On détecte l'appui sur les touches au niveau du document
+    $(document.documentElement).bind('keyup',key_up_handler)
 
 
 });
