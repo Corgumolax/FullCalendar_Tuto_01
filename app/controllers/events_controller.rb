@@ -1,10 +1,11 @@
 class EventsController < ApplicationController
+  respond_to :html, :js
   # GET /events
   # GET /events.json
   def index
     #@events = Event.all
     @events = Event.scoped
-    @events = Event.between(params['start'],params['end']) if (params['start'] && params['end'])
+    @events = Event.between(params['start'], params['end']) if (params['start'] && params['end'])
     respond_to do |format|
       format.html # index.html.erb
       format.json { render json: @events }
@@ -26,16 +27,23 @@ class EventsController < ApplicationController
   # GET /events/new.json
   def new
     @event = Event.new
-
+    @event.start=params[:start] if params[:start]
+    @event.end=params[:end] if params[:end]
+    @event.editable = true
     respond_to do |format|
       format.html # new.html.erb
       format.json { render json: @event }
+      format.js {render 'edit'}
     end
   end
 
   # GET /events/1/edit
   def edit
     @event = Event.find(params[:id])
+    respond_to do |format|
+      format.html # edit.html.erb
+      format.js #{ render partial: 'form_for_js' }
+    end
   end
 
   # POST /events
@@ -47,6 +55,7 @@ class EventsController < ApplicationController
       if @event.save
         format.html { redirect_to @event, notice: 'Event was successfully created.' }
         format.json { render json: @event, status: :created, location: @event }
+        format.js {head :ok}
       else
         format.html { render action: "new" }
         format.json { render json: @event.errors, status: :unprocessable_entity }
